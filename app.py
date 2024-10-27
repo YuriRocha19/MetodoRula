@@ -1,11 +1,11 @@
-import streamlit as st
-import cv2
-import mediapipe as mp
-import numpy as np
-import tempfile
+import numpy as np         # Numpy primeiro para carregar dependências matemáticas
+import pandas as pd        # Pandas não afeta as demais, então vem após numpy
+import cv2                 # OpenCV antes do MediaPipe para minimizar conflitos
+import mediapipe as mp     # MediaPipe após OpenCV
+import tempfile            # Agora outras bibliotecas da biblioteca padrão
 import os
 import math
-import pandas as pd
+import streamlit as st     # Streamlit como último para garantir que as demais estejam carregadas
 
 # Configuração do MediaPipe
 mp_holistic = mp.solutions.holistic

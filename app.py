@@ -110,8 +110,6 @@ if uploaded_video is not None:
             # Escrever frame processado no vídeo de saída
             out.write(processed_frame)
 
-            # Exibir frame
-            stframe.image(processed_frame, channels="BGR")
 
     # Fechar streams de vídeo
     video.release()

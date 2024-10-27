@@ -66,7 +66,7 @@ def convert_seconds_to_hhmmss(seconds):
     seconds = int(seconds % 60)
     return f"{hours:02}:{minutes:02}:{seconds:02}"
 
-st.title("Metodo Rula - Ergonomia")
+st.title("🎒 Metodo Rula - Ergonomia")
 
 # Carregar vídeo
 uploaded_video = st.file_uploader("Escolha um vídeo", type=["mp4", "mov", "avi"])

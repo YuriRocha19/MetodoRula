@@ -11,56 +11,60 @@ import streamlit as st     # Streamlit como último para garantir que as demais 
 mp_holistic = mp.solutions.holistic
 mp_drawing = mp.solutions.drawing_utils
 
-# Função para calcular o ângulo entre dois pontos em relação ao eixo vertical
-def calculate_trunk_angle(shoulder_mid, hip_mid):
-    dx = shoulder_mid[0] - hip_mid[0]
-    dy = shoulder_mid[1] - hip_mid[1]
-    angle_radians = math.atan2(dy, dx)
-    angle_degrees = abs(math.degrees(angle_radians))
-    return angle_degrees
+# Funções auxiliares para cálculo de ângulo e RULA Score
+def calculate_angle(a, b, c):
+        a = np.array(a)
+        b = np.array(b)
+        c = np.array(c)
 
-# Função para processar frame do vídeo com MediaPipe e calcular o ângulo
-def process_frame_with_landmarks(frame, holistic):
-    frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-    results = holistic.process(frame_rgb)
+        radians = np.arctan2(c[1] - b[1], c[0] - b[0]) - np.arctan2(a[1] - b[1], a[0] - b[0])
+        angle = np.abs(radians * 180.0 / np.pi)
 
-    if results.pose_landmarks:
-        height, width, _ = frame.shape
-        
-        # Coordenadas dos ombros e quadris
-        left_shoulder = results.pose_landmarks.landmark[mp_holistic.PoseLandmark.LEFT_SHOULDER]
-        right_shoulder = results.pose_landmarks.landmark[mp_holistic.PoseLandmark.RIGHT_SHOULDER]
-        left_hip = results.pose_landmarks.landmark[mp_holistic.PoseLandmark.LEFT_HIP]
-        right_hip = results.pose_landmarks.landmark[mp_holistic.PoseLandmark.RIGHT_HIP]
-        
-        # Calcular pontos médios dos ombros e quadris
-        shoulder_mid = (
-            int((left_shoulder.x + right_shoulder.x) / 2 * width),
-            int((left_shoulder.y + right_shoulder.y) / 2 * height)
-        )
-        hip_mid = (
-            int((left_hip.x + right_hip.x) / 2 * width),
-            int((left_hip.y + right_hip.y) / 2 * height)
-        )
-        
-        # Desenhar pontos dos ombros e quadris
-        cv2.circle(frame, shoulder_mid, 5, (255, 0, 0), -1)
-        cv2.circle(frame, hip_mid, 5, (255, 0, 0), -1)
-        
-        # Calcular o ângulo do tronco
-        trunk_angle = calculate_trunk_angle(shoulder_mid, hip_mid)
-        
-        # Exibir o ângulo na tela
-        cv2.putText(
-            frame, f"Trunk Angle: {trunk_angle:.2f} degrees", 
-            (50, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2
-        )
-        
-        # Desenhar linha entre ombros e quadris
-        cv2.line(frame, shoulder_mid, hip_mid, (0, 255, 0), 2)
+        if angle > 180.0:
+            angle = 360 - angle
 
-        return frame, trunk_angle  # Retorna também o ângulo
-    return frame, None
+        return angle
+
+def findAngle(x1, y1, x2, y2):
+    theta = m.acos((y2 - y1) * (-y1) / (m.sqrt((x2 - x1)**2 + (y2 - y1)**2) * y1))
+    degree = int(180 / m.pi) * theta
+    return degree
+
+def calculate_rula_score_tronco(angle):
+    if angle <= 5:
+        return 1
+    elif angle <= 20:
+        return 2
+    elif angle <= 60:
+        return 3
+    return 4
+
+def calculate_rula_score_pescoco(angle):
+    if angle <= 10:
+        return 1
+    elif angle <= 20:
+        return 2
+    return 3
+
+def calculate_rula_score_antebraco(angle):
+    if 60 < angle < 100:
+        return 1
+    return 2
+
+def calculate_rula_score_braco(angle):
+    if angle <= 20:
+        return 1
+    elif angle <= 45:
+        return 2
+    elif angle <= 90:
+        return 3
+    return 4
+
+def convert_seconds_to_hhmmss(seconds):
+    hours = int(seconds // 3600)
+    minutes = int((seconds % 3600) // 60)
+    seconds = int(seconds % 60)
+    return f"{hours:02}:{minutes:02}:{seconds:02}"
 
 st.title("Ergonomia com Processamento de Vídeo usando MediaPipe")
 
@@ -71,24 +75,18 @@ if uploaded_video is not None:
     # Salvar vídeo de entrada em arquivo temporário e fechar o arquivo após escrever
     tfile = tempfile.NamedTemporaryFile(delete=False)
     tfile.write(uploaded_video.read())
-    tfile.close()  # Fechar o arquivo temporário após o upload
-    
+    tfile.close()
+
     # Ler o vídeo usando OpenCV
     video = cv2.VideoCapture(tfile.name)
-
-    # Configurar saída de vídeo em um arquivo temporário
     temp_video_path = tempfile.NamedTemporaryFile(delete=False, suffix=".mp4").name
     fps = int(video.get(cv2.CAP_PROP_FPS))
     width = int(video.get(cv2.CAP_PROP_FRAME_WIDTH))
     height = int(video.get(cv2.CAP_PROP_FRAME_HEIGHT))
     out = cv2.VideoWriter(temp_video_path, cv2.VideoWriter_fourcc(*"mp4v"), fps, (width, height))
 
-    stframe = st.empty()  # Placeholder para exibir os frames
+    data = []
 
-    # Lista para armazenar dados dos ângulos
-    angle_data = []
-
-    # Processo de vídeo com contexto do MediaPipe
     with mp_holistic.Holistic(static_image_mode=False, min_detection_confidence=0.5) as holistic:
         frame_index = 0
         while video.isOpened():
@@ -96,29 +94,123 @@ if uploaded_video is not None:
             if not ret:
                 break
 
-            # Processar frame e calcular o ângulo do tronco
-            processed_frame, trunk_angle = process_frame_with_landmarks(frame, holistic)
+            frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+            results = holistic.process(frame_rgb)
 
-            # Salvar dados do ângulo se calculado
-            if trunk_angle is not None:
-                time_in_seconds = frame_index / fps
-                angle_data.append({"Time (s)": time_in_seconds, "Trunk Angle (degrees)": trunk_angle})
-            
-            # Incrementar o índice do frame
+            if results.pose_landmarks:
+                landmarks = results.pose_landmarks.landmark
+                height, width, _ = frame.shape
+
+                # Verificar a visibilidade dos lados direito e esquerdo
+                right_visibility = landmarks[mp_holistic.PoseLandmark.RIGHT_SHOULDER].visibility
+                left_visibility = landmarks[mp_holistic.PoseLandmark.LEFT_SHOULDER].visibility
+
+                
+
+                if right_visibility > left_visibility:
+                    # Cálculos para o lado direito
+                    shoulder = mp_holistic.PoseLandmark.RIGHT_SHOULDER
+                    hip = mp_holistic.PoseLandmark.RIGHT_HIP
+                    elbow = mp_holistic.PoseLandmark.RIGHT_ELBOW
+                    wrist = mp_holistic.PoseLandmark.RIGHT_WRIST
+                    ear = mp_holistic.PoseLandmark.RIGHT_EAR
+                    side = "Direito"
+                else:
+                    # Cálculos para o lado esquerdo
+                    shoulder = mp_holistic.PoseLandmark.LEFT_SHOULDER
+                    hip = mp_holistic.PoseLandmark.LEFT_HIP
+                    elbow = mp_holistic.PoseLandmark.LEFT_ELBOW
+                    wrist = mp_holistic.PoseLandmark.LEFT_WRIST
+                    ear = mp_holistic.PoseLandmark.LEFT_EAR
+                    side = "Esquerdo"
+
+                # Coordenadas dos pontos relevantes
+                shoulder_coord = (int(landmarks[shoulder].x * width), int(landmarks[shoulder].y * height))
+                hip_coord = (int(landmarks[hip].x * width), int(landmarks[hip].y * height))
+                elbow_coord = (int(landmarks[elbow].x * width), int(landmarks[elbow].y * height))
+                wrist_coord = (int(landmarks[wrist].x * width), int(landmarks[wrist].y * height))
+                ear_coord = (int(landmarks[ear].x * width), int(landmarks[ear].y * height))
+
+                # Cálculo dos ângulos e RULA scores
+                angle_tronco = calculate_angle(shoulder_coord, hip_coord, [hip_coord[0], hip_coord[1] - 1])
+                rula_score_tronco = calculate_rula_score_tronco(angle_tronco)
+
+                neck_angle = calculate_angle(shoulder_coord, ear_coord, hip_coord)
+                rula_score_pescoco = calculate_rula_score_pescoco(neck_angle)
+
+                angle_antebraco = calculate_angle(shoulder_coord, elbow_coord, wrist_coord)
+                rula_score_antebraco = calculate_rula_score_antebraco(angle_antebraco)
+
+                angle_braco = calculate_angle(hip_coord, shoulder_coord, wrist_coord)
+                rula_score_braco = calculate_rula_score_braco(angle_braco)
+                
+                # Exibir ângulos na parte superior do frame
+                text_y_start_top = int(height * 0.05)  # Começo do texto para ângulos
+                line_spacing = int(height * 0.05)  # Espaçamento entre linhas
+
+                cv2.putText(frame, f'Ang. Tronco {side}: {int(angle_tronco)}', (int(width * 0.02), text_y_start_top),
+                            cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2, cv2.LINE_AA)
+                cv2.putText(frame, f'Ang. Pescoco {side}: {int(neck_angle)}', (int(width * 0.02), text_y_start_top + line_spacing),
+                            cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2, cv2.LINE_AA)
+                cv2.putText(frame, f'Ang. Antebraco {side}: {int(angle_antebraco)}', (int(width * 0.02), text_y_start_top + 2 * line_spacing),
+                            cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2, cv2.LINE_AA)
+                cv2.putText(frame, f'Ang. Braco {side}: {int(angle_braco)}', (int(width * 0.02), text_y_start_top + 3 * line_spacing),
+                            cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2, cv2.LINE_AA)
+
+                # Exibir RULA scores na parte inferior do frame
+                text_y_start_bottom = int(height * 0.8)  # Início dos RULA scores na parte inferior
+                cv2.putText(frame, f'Rula Score Tronco: {rula_score_tronco}', (int(width * 0.02), text_y_start_bottom),
+                            cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2, cv2.LINE_AA)
+                cv2.putText(frame, f'Rula Score Pescoco: {rula_score_pescoco}', (int(width * 0.02), text_y_start_bottom + line_spacing),
+                            cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2, cv2.LINE_AA)
+                cv2.putText(frame, f'Rula Score Antebraco: {rula_score_antebraco}', (int(width * 0.02), text_y_start_bottom + 2 * line_spacing),
+                            cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2, cv2.LINE_AA)
+                cv2.putText(frame, f'Rula Score Braco: {rula_score_braco}', (int(width * 0.02), text_y_start_bottom + 3 * line_spacing),
+                            cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2, cv2.LINE_AA)
+                
+                cv2.circle(frame, tuple(shoulder_coord), 5, (0, 255, 0), -1)
+                cv2.circle(frame, tuple(hip_coord), 5, (0, 255, 0), -1)
+                cv2.line(frame, tuple(hip_coord), tuple(shoulder_coord), (0, 255, 0), 2)
+                cv2.circle(frame, (int(ear_coord[0]), int(ear_coord[1])), 5, (0, 255, 0), -1)
+                cv2.line(frame, (int(ear_coord[0]), int(ear_coord[1])), (int(shoulder_coord[0]), int(shoulder_coord[1])), (0, 255, 0), 2)
+                cv2.circle(frame, tuple(elbow_coord), 5, (0, 255, 0), -1)
+                cv2.circle(frame, tuple(wrist_coord), 5, (0, 255, 0), -1)
+                cv2.line(frame, tuple(shoulder_coord), tuple(elbow_coord), (0, 255, 0), 2)
+                cv2.line(frame, tuple(elbow_coord), tuple(wrist_coord), (0, 255, 0), 2)
+
+
+                # Armazenar os dados no dicionário
+                current_time = frame_index / fps
+                current_time_hhmmss = convert_seconds_to_hhmmss(current_time)
+
+                data.append({
+                    'Tempo (s)': current_time_hhmmss,
+                    f'Ângulo Tronco {side}': angle_tronco,
+                    'Rula Score Tronco': rula_score_tronco,
+                    f'Ângulo Pescoco {side}': neck_angle,
+                    'Rula Score Pescoco': rula_score_pescoco,
+                    f'Ângulo Antebraco {side}': angle_antebraco,
+                    'Rula Score Antebraco': rula_score_antebraco,
+                    f'Ângulo Braco {side}': angle_braco,
+                    'Rula Score Braco': rula_score_braco
+                })
+
+            out.write(frame)
             frame_index += 1
 
-            # Escrever frame processado no vídeo de saída
-            out.write(processed_frame)
-
-
-    # Fechar streams de vídeo
     video.release()
     out.release()
 
-    # Criar DataFrame e exportar para Excel
-    df = pd.DataFrame(angle_data)
+        # Salvar dados em planilha
+    df = pd.DataFrame(data)
     excel_path = tempfile.NamedTemporaryFile(delete=False, suffix=".xlsx").name
     df.to_excel(excel_path, index=False)
+
+        # Agrupar dados por segundo e calcular médias
+    grouped_df = df.groupby('Tempo (s)').median().reset_index()
+    grouped_excel_path = tempfile.NamedTemporaryFile(delete=False, suffix="_grouped.xlsx").name
+    grouped_df.to_excel(grouped_excel_path, index=False)
+
 
     # Exibir botão de download para o vídeo processado
     with open(temp_video_path, "rb") as f:
@@ -138,6 +230,12 @@ if uploaded_video is not None:
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
         )
 
+    with open(grouped_excel_path, "rb") as f:
+        st.download_button(
+            label="Baixar planilha de ângulos por segundo",
+            data=f, file_name="angulo_tronco_por_segundo.xlsx",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        )
     # Remover arquivos temporários após o uso
     try:
         os.remove(tfile.name)
@@ -145,5 +243,6 @@ if uploaded_video is not None:
         pass  # Ignorar erro se o arquivo ainda estiver em uso
     os.remove(temp_video_path)
     os.remove(excel_path)
+    os.remove(grouped_excel_path)
 
-st.write("Para mais informações, visite o [LinkedIn do autor](https://www.linkedin.com/in/yuri-rudimar/)")
+st.write("Desenvolvido por [Yuri Rocha](https://www.linkedin.com/in/yuri-rudimar/) com apoio de [Vanessa Nappi](http://lattes.cnpq.br/1442468348335571) para a disciplina de Ergonomia. Departamento de Engenharia de Produção e Sistema, UDESC-CCT (Joinville-SC)")

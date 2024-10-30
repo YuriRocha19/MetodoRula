@@ -245,4 +245,4 @@ if uploaded_video is not None:
     os.remove(excel_path)
     os.remove(grouped_excel_path)
 
-st.write("Desenvolvido por [Yuri Rocha](https://www.linkedin.com/in/yuri-rudimar/) com apoio de [Vanessa Nappi](http://lattes.cnpq.br/1442468348335571) para a disciplina de Ergonomia./nDepartamento de Engenharia de Produção e Sistema, UDESC-CCT (Joinville-SC)")
+st.write("Desenvolvido por [Yuri Rocha](https://www.linkedin.com/in/yuri-rudimar/) com apoio de [Vanessa Nappi](http://lattes.cnpq.br/1442468348335571) para a disciplina de Ergonomia.Departamento de Engenharia de Produção e Sistema, UDESC-CCT (Joinville-SC)")

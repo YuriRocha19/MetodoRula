@@ -1,6 +1,6 @@
+import cv2   
 import numpy as np         # Numpy primeiro para carregar dependências matemáticas
 import pandas as pd        # Pandas não afeta as demais, então vem após numpy
-import cv2                 # OpenCV antes do MediaPipe para minimizar conflitos
 import mediapipe as mp     # MediaPipe após OpenCV
 import tempfile            # Agora outras bibliotecas da biblioteca padrão
 import os

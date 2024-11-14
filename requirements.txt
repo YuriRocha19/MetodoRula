@@ -2,6 +2,7 @@ streamlit==1.39.0
 numpy==2.1.2
 pandas==2.2.3
 openpyxl==3.1.2
-mediapipe==0.10.8
+mediapipe==0.10.14  # Versão compatível disponível para Python 3.12
 opencv-python-headless==4.8.0.76
-protobuf==3.20.1  # Recomendado para compatibilidade com mediapipe
+protobuf==4.23.3  # Versão recomendada para compatibilidade com mediapipe 0.10.14
+pillow==9.2.0     # Suporte a imagens no Streamlit

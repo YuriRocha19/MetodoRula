@@ -1,8 +1,7 @@
-mediapipe==0.10.14
-numpy==2.1.2
-opencv-python-headless==4.10.0.84
-pandas==2.2.3
 streamlit==1.39.0
+numpy==2.1.2
+pandas==2.2.3
 openpyxl==3.1.2
-protobuf==4.23.3
-pillow==9.2.0
+mediapipe==0.10.8
+opencv-python-headless==4.8.0.76
+protobuf==3.20.1  # Recomendado para compatibilidade com mediapipe

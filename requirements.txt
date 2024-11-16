@@ -1,4 +1,4 @@
-numpy==2.1.2 --upgrade --force-reinstall
+numpy==2.1.2
 opencv-python-headless==4.8.0.74
 mediapipe==0.10.14
 streamlit==1.39.0

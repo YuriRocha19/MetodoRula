@@ -214,12 +214,14 @@ if uploaded_video is not None:
 
     # Exibir botão de download para o vídeo processado
     with open(temp_video_path, "rb") as f:
-        st.download_button(
-            label="Baixar vídeo processado",
-            data=f,
-            file_name="video_processado.mp4",
-            mime="video/mp4"
-        )
+        video_bytes = f.read()
+    
+    st.download_button(
+        label="Baixar vídeo processado",
+        data=video_bytes,
+        file_name="video_processado.mp4",
+        mime="video/mp4"
+    )
 
     # Exibir botão de download para o arquivo Excel
     with open(excel_path, "rb") as f:

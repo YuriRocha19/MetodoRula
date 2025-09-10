@@ -236,13 +236,6 @@ if uploaded_video is not None:
             data=f, file_name="angulo_tronco_por_segundo.xlsx",
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
         )
-    # Remover arquivos temporários após o uso
-    try:
-        os.remove(tfile.name)
-    except PermissionError:
-        pass  # Ignorar erro se o arquivo ainda estiver em uso
-    os.remove(temp_video_path)
-    os.remove(excel_path)
-    os.remove(grouped_excel_path)
+
 
 st.write("Desenvolvido por [Yuri Rocha](https://www.linkedin.com/in/yuri-rudimar/) com apoio de [Vanessa Nappi](http://lattes.cnpq.br/1442468348335571) para a disciplina de Ergonomia.Departamento de Engenharia de Produção e Sistema, UDESC-CCT (Joinville-SC)")

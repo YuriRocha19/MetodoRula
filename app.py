@@ -6,6 +6,7 @@ import tempfile            # Agora outras bibliotecas da biblioteca padrão
 import os
 import math
 import streamlit as st     # Streamlit como último para garantir que as demais estejam carregadas
+from io import BytesIO
 
 # Configuração do MediaPipe
 mp_holistic = mp.solutions.holistic
@@ -225,17 +226,23 @@ if uploaded_video is not None:
 
     # Exibir botão de download para o arquivo Excel
     with open(excel_path, "rb") as f:
+        buffer = BytesIO()
+        df.to_excel(buffer, index=False)
+        buffer.seek(0)
         st.download_button(
             label="Baixar planilha de ângulos",
-            data=f,
+            data=buffer,
             file_name="angulo_tronco.xlsx",
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
         )
 
     with open(grouped_excel_path, "rb") as f:
+        buffer = BytesIO()
+        df.to_excel(buffer, index=False)
+        buffer.seek(0)
         st.download_button(
             label="Baixar planilha de ângulos por segundo",
-            data=f, file_name="angulo_tronco_por_segundo.xlsx",
+            data=buffer, file_name="angulo_tronco_por_segundo.xlsx",
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
         )
 
